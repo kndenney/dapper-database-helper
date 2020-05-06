@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace DapperDatabaseHelper
 {
-    public class DatabaseHelper<T> : BaseRepository
+    public class DatabaseHelper<T> : BaseRepository, IDatabaseHelper<T>
     {
         SqlConnection conn;
 
