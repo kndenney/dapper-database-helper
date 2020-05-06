@@ -15,16 +15,20 @@ namespace DapperDatabaseHelper
 
         public DatabaseHelper(string connectionString) : base(connectionString) { }
 
-        public void ExecuteNonQuery(string sql)
+        public async Task ExecuteNonQueryAsync(string sql)
         {
             SqlCommand cmd = new SqlCommand(sql, conn);
-            cmd.ExecuteNonQuery();
+            await cmd.ExecuteNonQueryAsync();
         }
 
-        public SqlDataReader ExecuteReader(string sql)
+        public async Task<SqlDataReader> ExecuteReaderAsync(string sql, params SqlParameter[] parameters)
         {
             SqlCommand cmd = new SqlCommand(sql, conn);
-            SqlDataReader reader = cmd.ExecuteReader();
+            foreach(var item in parameters)
+            {
+                cmd.Parameters.Add(item);
+            }
+            SqlDataReader reader = await cmd.ExecuteReaderAsync();
             return reader;
         }
 
