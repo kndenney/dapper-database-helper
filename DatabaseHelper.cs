@@ -59,7 +59,7 @@ namespace DapperDatabaseHelper
                 }
                 SqlDataReader reader = await cmd.ExecuteReaderAsync();
                 return reader;
-            }
+            });
         }
 
         public async Task<int> ExecuteCommandQueryAsync(string sql, params SqlParameter[] parameters)
@@ -77,7 +77,7 @@ namespace DapperDatabaseHelper
 
                 try
                 {
-                    var data = await conn.ExecuteAsync(sql, dynamicParamters, commandType: CommandType.Text);
+                    var data = await c.ExecuteAsync(sql, dynamicParamters, commandType: CommandType.Text);
                     return data;
                 }
                 catch (Exception ex)
@@ -102,7 +102,7 @@ namespace DapperDatabaseHelper
 
                 try
                 {
-                    var data = await conn.QueryAsync<T>(storedProcedure, dynamicParamters, commandType: CommandType.StoredProcedure);
+                    var data = await c.QueryAsync<T>(storedProcedure, dynamicParamters, commandType: CommandType.StoredProcedure);
                     return data.FirstOrDefault();
                 }
                 catch (Exception ex)
@@ -127,7 +127,7 @@ namespace DapperDatabaseHelper
 
                 try
                 {
-                    var data = await conn.QueryMultipleAsync(storedProcedure, TParamters, commandType: CommandType.StoredProcedure);
+                    var data = await c.QueryMultipleAsync(storedProcedure, TParamters, commandType: CommandType.StoredProcedure);
 
                     List<IEnumerable<T>> d = new List<IEnumerable<T>>();
                     while (data.IsConsumed == false)
@@ -144,9 +144,9 @@ namespace DapperDatabaseHelper
             });
         }
 
-        public async Task<T> ExecuteStoredProcedureTransactionQueryAsync(string storedProcedure, params SqlParameter[] parameters)
+        public async Task ExecuteStoredProcedureTransactionQueryAsync(string storedProcedure, params SqlParameter[] parameters)
         {
-            return await WithConnection<T>(async c => {
+            await WithConnection<Task>(async c => {
 
                 List<T> list = new List<T>();
 
@@ -159,11 +159,12 @@ namespace DapperDatabaseHelper
 
                 try
                 {
-                    using (var transaction = conn.BeginTransaction())
+                    using (var transaction = c.BeginTransaction())
                     {
-                        await conn.ExecuteAsync(storedProcedure, dynamicParamters, commandType: CommandType.StoredProcedure);
+                        await c.ExecuteAsync(storedProcedure, dynamicParamters, commandType: CommandType.StoredProcedure);
 
                         transaction.Commit();
+                        return Task.CompletedTask;
                     }
                 }
                 catch (Exception ex)
@@ -173,9 +174,9 @@ namespace DapperDatabaseHelper
             });
         }
 
-        public async Task<T> ExecuteSqlTransactionQueryAsync(string sql, params SqlParameter[] parameters)
+        public async Task ExecuteSqlTransactionQueryAsync(string sql, params SqlParameter[] parameters)
         {
-            return await WithConnection<T>(async c => {
+            await WithConnection<Task>(async c => {
 
                 List<T> list = new List<T>();
 
@@ -188,11 +189,12 @@ namespace DapperDatabaseHelper
 
                 try
                 {
-                    using (var transaction = conn.BeginTransaction())
+                    using (var transaction = c.BeginTransaction())
                     {
-                        await conn.ExecuteAsync(sql, dynamicParamters, commandType: CommandType.Text);
+                        await c.ExecuteAsync(sql, dynamicParamters, commandType: CommandType.Text);
 
                         transaction.Commit();
+                        return Task.CompletedTask;
                     }
                 }
                 catch (Exception ex)
