@@ -9,6 +9,13 @@ using System.Threading.Tasks;
 
 namespace DapperDatabaseHelper
 {
+    /*
+     * if you inject this guy in the Startup here is an example of usage:
+     * services.AddScoped<IDatabaseHelper<dynamic>(c => new DatabaseHelper<dynamic>("connection string goes here");
+     * and if you need to get it from the config then use the ServiceProvider.GetServices() approach or the IOptions route
+       for the connection string (so you don't have to hard code it 
+     * 
+     * */
     public class DatabaseHelper<T> : BaseRepository, IDatabaseHelper<T>
     {
         SqlConnection conn;
@@ -17,31 +24,42 @@ namespace DapperDatabaseHelper
 
         public async Task ExecuteNonQueryAsync(string sql)
         {
-            SqlCommand cmd = new SqlCommand(sql, conn);
-            await cmd.ExecuteNonQueryAsync();
+            await WithConnection<Task>(async c =>
+            {
+                SqlCommand cmd = new SqlCommand(sql, conn);
+                await cmd.ExecuteNonQueryAsync();
+                return Task.CompletedTask;
+            });
         }
 
         public async Task ExecuteNonQueryStoredProcedureAsync(string storedProcedure, SqlParameter[] parameters)
         {
-            SqlCommand cmd = new SqlCommand(storedProcedure, conn);
-            cmd.CommandType = CommandType.StoredProcedure;
-            foreach (var item in parameters)
+            await WithConnection<Task>(async c =>
             {
-                cmd.Parameters.Add(item);
-            }
+                SqlCommand cmd = new SqlCommand(storedProcedure, conn);
+                cmd.CommandType = CommandType.StoredProcedure;
+                foreach (var item in parameters)
+                {
+                    cmd.Parameters.Add(item);
+                }
 
-            await cmd.ExecuteNonQueryAsync();
+                await cmd.ExecuteNonQueryAsync();
+                return Task.CompletedTask;
+            });
         }
 
         public async Task<SqlDataReader> ExecuteReaderAsync(string sql, params SqlParameter[] parameters)
         {
-            SqlCommand cmd = new SqlCommand(sql, conn);
-            foreach(var item in parameters)
+            return await WithConnection<SqlDataReader>(async c =>
             {
-                cmd.Parameters.Add(item);
+                SqlCommand cmd = new SqlCommand(sql, conn);
+                foreach (var item in parameters)
+                {
+                    cmd.Parameters.Add(item);
+                }
+                SqlDataReader reader = await cmd.ExecuteReaderAsync();
+                return reader;
             }
-            SqlDataReader reader = await cmd.ExecuteReaderAsync();
-            return reader;
         }
 
         public async Task<int> ExecuteCommandQueryAsync(string sql, params SqlParameter[] parameters)
