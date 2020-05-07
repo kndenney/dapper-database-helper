@@ -16,7 +16,7 @@ namespace DapperDatabaseHelper
 			_connectionString = connectionString;
 		}
 
-		protected async Task<T> WithConnection<T>(Func<IDbConnection, Task<T>> executeAsync)
+		protected async Task<T> WithConnection<T>(Func<SqlConnection, Task<T>> executeAsync)
 		{
 			try
 			{
