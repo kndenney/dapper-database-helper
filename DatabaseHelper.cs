@@ -21,6 +21,18 @@ namespace DapperDatabaseHelper
             await cmd.ExecuteNonQueryAsync();
         }
 
+        public async Task ExecuteNonQueryStoredProcedureAsync(string storedProcedure, SqlParameter[] parameters)
+        {
+            SqlCommand cmd = new SqlCommand(storedProcedure, conn);
+            cmd.CommandType = CommandType.StoredProcedure;
+            foreach (var item in parameters)
+            {
+                cmd.Parameters.Add(item);
+            }
+
+            await cmd.ExecuteNonQueryAsync();
+        }
+
         public async Task<SqlDataReader> ExecuteReaderAsync(string sql, params SqlParameter[] parameters)
         {
             SqlCommand cmd = new SqlCommand(sql, conn);
@@ -106,6 +118,64 @@ namespace DapperDatabaseHelper
                     }
 
                     return d;
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception(String.Format("{0}.WithConnection() experienced an exception", GetType().FullName), ex);
+                }
+            });
+        }
+
+        public async Task<T> ExecuteStoredProcedureTransactionQueryAsync(string storedProcedure, params SqlParameter[] parameters)
+        {
+            return await WithConnection<T>(async c => {
+
+                List<T> list = new List<T>();
+
+                DynamicParameters dynamicParamters = new DynamicParameters();
+
+                foreach (var item in parameters)
+                {
+                    dynamicParamters.Add(item.ParameterName, item.Value);
+                }
+
+                try
+                {
+                    using (var transaction = conn.BeginTransaction())
+                    {
+                        await conn.ExecuteAsync(storedProcedure, dynamicParamters, commandType: CommandType.StoredProcedure);
+
+                        transaction.Commit();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception(String.Format("{0}.WithConnection() experienced an exception", GetType().FullName), ex);
+                }
+            });
+        }
+
+        public async Task<T> ExecuteSqlTransactionQueryAsync(string sql, params SqlParameter[] parameters)
+        {
+            return await WithConnection<T>(async c => {
+
+                List<T> list = new List<T>();
+
+                DynamicParameters dynamicParamters = new DynamicParameters();
+
+                foreach (var item in parameters)
+                {
+                    dynamicParamters.Add(item.ParameterName, item.Value);
+                }
+
+                try
+                {
+                    using (var transaction = conn.BeginTransaction())
+                    {
+                        await conn.ExecuteAsync(sql, dynamicParamters, commandType: CommandType.Text);
+
+                        transaction.Commit();
+                    }
                 }
                 catch (Exception ex)
                 {
