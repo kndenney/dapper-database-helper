@@ -62,7 +62,7 @@ namespace DapperDatabaseHelper
             });
         }
 
-        public async Task<SqlDataReader> ExecuteReaderStoredProcedureAsync(string sql, params SqlParameter[] parameters)
+        public async Task ExecuteReaderStoredProcedureAsync(string sql, params SqlParameter[] parameters)
         {
             return await WithConnection<SqlDataReader>(async c =>
             {
@@ -73,7 +73,13 @@ namespace DapperDatabaseHelper
                 }
                 cmd.CommandType = CommandType.StoredProcedure;
 
-                SqlDataReader reader = await cmd.ExecuteReaderAsync();
+            //Keeps the connection open until reader is closed
+            SqlDataReader reader = await cmd.ExecuteReaderAsync(); // CommandBehavior.CloseConnection);
+
+                if (await reader.ReadAsync())
+                {
+                    return reader;
+                }
                 return reader;
             });
         }
@@ -103,9 +109,9 @@ namespace DapperDatabaseHelper
             });
         }
 
-        public async Task<T> ExecuteStoredProcedureQueryAsync(string storedProcedure, params SqlParameter[] parameters)
+        public async Task<IEnumerable<U>> ExecuteStoredProcedureQueryAsync<U>(string storedProcedure, params SqlParameter[] parameters)
         {
-            return await WithConnection<T>(async c => {
+            return await WithConnection<IEnumerable<U>>(async c => {
 
                 List<T> list = new List<T>();
 
@@ -118,8 +124,8 @@ namespace DapperDatabaseHelper
 
                 try
                 {
-                    var data = await c.QueryAsync<T>(storedProcedure, dynamicParamters, commandType: CommandType.StoredProcedure);
-                    return data.FirstOrDefault();
+                    var data = await c.QueryAsync<U>(storedProcedure, dynamicParamters, commandType: CommandType.StoredProcedure);
+                    return data;
                 }
                 catch (Exception ex)
                 {
