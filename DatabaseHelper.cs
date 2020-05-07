@@ -48,7 +48,7 @@ namespace DapperDatabaseHelper
             });
         }
 
-        public async Task<SqlDataReader> ExecuteReaderAsync(string sql, params SqlParameter[] parameters)
+        public async Task<SqlDataReader> ExecuteReaderSqlAsync(string sql, params SqlParameter[] parameters)
         {
             return await WithConnection<SqlDataReader>(async c =>
             {
@@ -57,6 +57,22 @@ namespace DapperDatabaseHelper
                 {
                     cmd.Parameters.Add(item);
                 }
+                SqlDataReader reader = await cmd.ExecuteReaderAsync();
+                return reader;
+            });
+        }
+
+        public async Task<SqlDataReader> ExecuteReaderStoredProcedureAsync(string sql, params SqlParameter[] parameters)
+        {
+            return await WithConnection<SqlDataReader>(async c =>
+            {
+                SqlCommand cmd = new SqlCommand(sql, conn);
+                foreach (var item in parameters)
+                {
+                    cmd.Parameters.Add(item);
+                }
+                cmd.CommandType = CommandType.StoredProcedure;
+
                 SqlDataReader reader = await cmd.ExecuteReaderAsync();
                 return reader;
             });
