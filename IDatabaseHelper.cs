@@ -12,7 +12,8 @@ namespace DapperDatabaseHelper
         Task<SqlDataReader> ExecuteReaderSqlAsync(string sql, params SqlParameter[] parameters);
         Task<SqlDataReader> ExecuteReaderStoredProcedureAsync(string sql, params SqlParameter[] parameters);
         Task<int> ExecuteCommandQueryAsync(string sql, params SqlParameter[] parameters);
-        Task<T> ExecuteStoredProcedureQueryAsync(string storedProcedure, params SqlParameter[] parameters);
+        IEnumerator<SqlDataReader> ExecuteDataReaderSqlReturnDataReader(string sql, params SqlParameter[] parameters);
+        Task<IEnumerable<U>> ExecuteStoredProcedureQueryAsync<U>(string storedProcedure, params SqlParameter[] parameters);
         Task<List<IEnumerable<T>>> ExecuteStoredProcedureQueryMultipleAsync(string storedProcedure, params SqlParameter[] parameters);
     }
 }

@@ -1,8 +1,8 @@
 ﻿using Dapper;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Data;
-using System.Data.Common;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Threading.Tasks;
@@ -19,8 +19,11 @@ namespace DapperDatabaseHelper
     public class DatabaseHelper<T> : BaseRepository, IDatabaseHelper<T>
     {
         SqlConnection conn;
+        string _connectionString = "";
 
-        public DatabaseHelper(string connectionString) : base(connectionString) { }
+        public DatabaseHelper(string connectionString) : base(connectionString) {
+            _connectionString = connectionString;
+        }
 
         public async Task ExecuteNonQueryAsync(string sql)
         {
@@ -48,6 +51,31 @@ namespace DapperDatabaseHelper
             });
         }
 
+        //We need to figure out a way to return an object from this reader rather than the sqlDataareder itself
+        //https://www.codeproject.com/Articles/827984/Generically-Populate-List-of-Objects-from-SqlDataR
+        //This might be enough too
+        //https://codereview.stackexchange.com/questions/58251/transform-datareader-to-listt-using-reflections
+
+        //https://stackoverflow.com/questions/10252531/returning-a-sqldatareader
+        public IEnumerator<SqlDataReader> ExecuteDataReaderSqlReturnDataReader(string sql, params SqlParameter[] parameters)
+        {
+            using (SqlConnection conn = new SqlConnection(_connectionString))
+            {
+                SqlCommand cmd = new SqlCommand(sql, conn);
+                conn.Open();
+                foreach (var item in parameters)
+                {
+                    cmd.Parameters.Add(item);
+                }
+                SqlDataReader reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    yield return reader;
+                }
+                conn.Close();
+            }
+        }
+
         public async Task<SqlDataReader> ExecuteReaderSqlAsync(string sql, params SqlParameter[] parameters)
         {
             return await WithConnection<SqlDataReader>(async c =>
@@ -62,7 +90,7 @@ namespace DapperDatabaseHelper
             });
         }
 
-        public async Task ExecuteReaderStoredProcedureAsync(string sql, params SqlParameter[] parameters)
+        public async Task<SqlDataReader> ExecuteReaderStoredProcedureAsync(string sql, params SqlParameter[] parameters)
         {
             return await WithConnection<SqlDataReader>(async c =>
             {
