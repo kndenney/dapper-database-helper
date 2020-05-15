@@ -279,7 +279,7 @@ namespace DapperDatabaseHelper
             return dt;
         }
 
-        public async Task ExecuteQueryTableValueParameterStoredProcedure<U>(string storedProcedure, IEnumerable<U> data)
+        public async Task ExecuteQueryTableValueParameterStoredProcedure<U>(string storedProcedure, IEnumerable<U> dataToConvert)
         {
             return await WithConnection<IEnumerable<U>>(async c => {
 
@@ -287,7 +287,7 @@ namespace DapperDatabaseHelper
 
                 DataTable dt = new DataTable();
 
-                dt = ConvertObjectToDataTable(data);
+                dt = ConvertObjectToDataTable(dataToConvert);
 
                 try
                 {
