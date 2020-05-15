@@ -1,6 +1,7 @@
 ﻿using Dapper;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Data;
 using System.Data.SqlClient;
@@ -246,6 +247,52 @@ namespace DapperDatabaseHelper
                         transaction.Commit();
                         return Task.CompletedTask;
                     }
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception(String.Format("{0}.WithConnection() experienced an exception", GetType().FullName), ex);
+                }
+            });
+        }
+
+        public DataTable ConvertObjectToDataTable<U>(IEnumerable<U> data)
+        {
+            PropertyDescriptorCollection props =
+                TypeDescriptor.GetProperties(typeof(U));
+
+            DataTable dt = new DataTable();
+
+            foreach(PropertyDescriptor p in props)
+            {
+                dt.Columns.Add(p.Name, p.PropertyType);
+            }
+
+            object[] values = new object[props.Count];
+            foreach (U item in data)
+            {
+                for (int i = 0; i < values.Length; i++)
+                {
+                    values[i] = props[i].GetValue(item);
+                }
+                dt.Rows.Add(values);
+            }
+            return dt;
+        }
+
+        public async Task ExecuteQueryTableValueParameterStoredProcedure<U>(string storedProcedure, IEnumerable<U> data)
+        {
+            return await WithConnection<IEnumerable<U>>(async c => {
+
+                List<T> list = new List<T>();
+
+                DataTable dt = new DataTable();
+
+                dt = ConvertObjectToDataTable(data);
+
+                try
+                {
+                    var data = await c.QueryAsync<U>(storedProcedure, dt.AsTableValuedParameter(), commandType: CommandType.StoredProcedure);
+                    return data;
                 }
                 catch (Exception ex)
                 {
