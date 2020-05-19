@@ -19,10 +19,11 @@ namespace DapperDatabaseHelper
      * */
     public class DatabaseHelper<T> : BaseRepository, IDatabaseHelper<T>
     {
-        SqlConnection conn;
+        SqlConnection conn = null;
         string _connectionString = "";
 
-        public DatabaseHelper(string connectionString) : base(connectionString) {
+        public DatabaseHelper(string connectionString) : base(connectionString)
+        {
             _connectionString = connectionString;
         }
 
@@ -30,9 +31,16 @@ namespace DapperDatabaseHelper
         {
             await WithConnection<Task>(async c =>
             {
-                SqlCommand cmd = new SqlCommand(sql, conn);
-                await cmd.ExecuteNonQueryAsync();
-                return Task.CompletedTask;
+                try
+                {
+                    SqlCommand cmd = new SqlCommand(sql, conn);
+                    await cmd.ExecuteNonQueryAsync();
+                    return Task.CompletedTask;
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception(String.Format("{0} experienced an exception with parameters {1}", GetType().FullName, sql), ex);
+                }
             });
         }
 
@@ -40,15 +48,22 @@ namespace DapperDatabaseHelper
         {
             await WithConnection<Task>(async c =>
             {
-                SqlCommand cmd = new SqlCommand(storedProcedure, conn);
-                cmd.CommandType = CommandType.StoredProcedure;
-                foreach (var item in parameters)
+                try
                 {
-                    cmd.Parameters.Add(item);
-                }
+                    SqlCommand cmd = new SqlCommand(storedProcedure, conn);
+                    cmd.CommandType = CommandType.StoredProcedure;
+                    foreach (var item in parameters)
+                    {
+                        cmd.Parameters.Add(item);
+                    }
 
-                await cmd.ExecuteNonQueryAsync();
-                return Task.CompletedTask;
+                    await cmd.ExecuteNonQueryAsync();
+                    return Task.CompletedTask;
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception(String.Format("{0} experienced an exception with parameters {1}", GetType().FullName, String.Join<SqlParameter>(",", parameters)), ex);
+                }
             });
         }
 
@@ -81,13 +96,20 @@ namespace DapperDatabaseHelper
         {
             return await WithConnection<SqlDataReader>(async c =>
             {
-                SqlCommand cmd = new SqlCommand(sql, conn);
-                foreach (var item in parameters)
+                try
                 {
-                    cmd.Parameters.Add(item);
+                    SqlCommand cmd = new SqlCommand(sql, conn);
+                    foreach (var item in parameters)
+                    {
+                        cmd.Parameters.Add(item);
+                    }
+                    SqlDataReader reader = await cmd.ExecuteReaderAsync();
+                    return reader;
                 }
-                SqlDataReader reader = await cmd.ExecuteReaderAsync();
-                return reader;
+                catch (Exception ex)
+                {
+                    throw new Exception(String.Format("{0} experienced an exception with parameters {1}", GetType().FullName, String.Join<SqlParameter>(",", parameters)), ex);
+                }
             });
         }
 
@@ -95,89 +117,99 @@ namespace DapperDatabaseHelper
         {
             return await WithConnection<SqlDataReader>(async c =>
             {
-                SqlCommand cmd = new SqlCommand(sql, conn);
-                foreach (var item in parameters)
+                try
                 {
-                    cmd.Parameters.Add(item);
-                }
-                cmd.CommandType = CommandType.StoredProcedure;
+                    SqlCommand cmd = new SqlCommand(sql, conn);
+                    foreach (var item in parameters)
+                    {
+                        cmd.Parameters.Add(item);
+                    }
+                    cmd.CommandType = CommandType.StoredProcedure;
 
-            //Keeps the connection open until reader is closed
-            SqlDataReader reader = await cmd.ExecuteReaderAsync(); // CommandBehavior.CloseConnection);
+                    //Keeps the connection open until reader is closed
+                    SqlDataReader reader = await cmd.ExecuteReaderAsync(); // CommandBehavior.CloseConnection);
 
-                if (await reader.ReadAsync())
-                {
+                    if (await reader.ReadAsync())
+                    {
+                        return reader;
+                    }
                     return reader;
                 }
-                return reader;
+                catch (Exception ex)
+                {
+                    throw new Exception(String.Format("{0} experienced an exception with parameters {1}", GetType().FullName, String.Join<SqlParameter>(",", parameters)), ex);
+                }
             });
         }
 
         public async Task<int> ExecuteCommandQueryAsync(string sql, params SqlParameter[] parameters)
         {
-            return await WithConnection<int>(async c => {
-
-                List<T> list = new List<T>();
-
-                DynamicParameters dynamicParamters = new DynamicParameters();
-
-                foreach (var item in parameters)
-                {
-                    dynamicParamters.Add(item.ParameterName, item.Value);
-                }
-
+            return await WithConnection<int>(async c =>
+            {
                 try
                 {
+                    List<T> list = new List<T>();
+
+                    DynamicParameters dynamicParamters = new DynamicParameters();
+
+                    foreach (var item in parameters)
+                    {
+                        dynamicParamters.Add(item.ParameterName, item.Value);
+                    }
+
+
                     var data = await c.ExecuteAsync(sql, dynamicParamters, commandType: CommandType.Text);
                     return data;
                 }
                 catch (Exception ex)
                 {
-                    throw new Exception(String.Format("{0}.WithConnection() experienced an exception", GetType().FullName), ex);
+                    throw new Exception(String.Format("{0} experienced an exception with parameters {1}", GetType().FullName, String.Join<SqlParameter>(",", parameters)), ex);
                 }
             });
         }
 
         public async Task<IEnumerable<U>> ExecuteStoredProcedureQueryAsync<U>(string storedProcedure, params SqlParameter[] parameters)
         {
-            return await WithConnection<IEnumerable<U>>(async c => {
-
-                List<T> list = new List<T>();
-
-                DynamicParameters dynamicParamters = new DynamicParameters();
-
-                foreach (var item in parameters)
-                {
-                    dynamicParamters.Add(item.ParameterName, item.Value);
-                }
-
+            return await WithConnection<IEnumerable<U>>(async c =>
+            {
                 try
                 {
+                    List<T> list = new List<T>();
+
+                    DynamicParameters dynamicParamters = new DynamicParameters();
+
+                    foreach (var item in parameters)
+                    {
+                        dynamicParamters.Add(item.ParameterName, item.Value);
+                    }
+
+
                     var data = await c.QueryAsync<U>(storedProcedure, dynamicParamters, commandType: CommandType.StoredProcedure);
                     return data;
                 }
                 catch (Exception ex)
                 {
-                    throw new Exception(String.Format("{0}.WithConnection() experienced an exception", GetType().FullName), ex);
+                    throw new Exception(String.Format("{0} experienced an exception with parameters {1}", GetType().FullName, String.Join<SqlParameter>(",", parameters)), ex);
                 }
             });
         }
 
         public async Task<List<IEnumerable<T>>> ExecuteStoredProcedureQueryMultipleAsync(string storedProcedure, params SqlParameter[] parameters)
         {
-            return await WithConnection<List<IEnumerable<T>>>(async c => {
-
-                List<IEnumerable<IEnumerable<T>>> list = new List<IEnumerable<IEnumerable<T>>>();
-
-                DynamicParameters TParamters = new DynamicParameters();
-
-                foreach (var item in parameters)
-                {
-                    TParamters.Add(item.ParameterName, item.Value);
-                }
-
+            return await WithConnection<List<IEnumerable<T>>>(async c =>
+            {
                 try
                 {
+                    List<IEnumerable<IEnumerable<T>>> list = new List<IEnumerable<IEnumerable<T>>>();
+
+                    DynamicParameters TParamters = new DynamicParameters();
+
+                    foreach (var item in parameters)
+                    {
+                        TParamters.Add(item.ParameterName, item.Value);
+                    }
+
+
                     var data = await c.QueryMultipleAsync(storedProcedure, TParamters, commandType: CommandType.StoredProcedure);
 
                     List<IEnumerable<T>> d = new List<IEnumerable<T>>();
@@ -190,26 +222,27 @@ namespace DapperDatabaseHelper
                 }
                 catch (Exception ex)
                 {
-                    throw new Exception(String.Format("{0}.WithConnection() experienced an exception", GetType().FullName), ex);
+                    throw new Exception(String.Format("{0} experienced an exception with parameters {1}", GetType().FullName, String.Join<SqlParameter>(",", parameters)), ex);
                 }
             });
         }
 
         public async Task ExecuteStoredProcedureTransactionQueryAsync(string storedProcedure, params SqlParameter[] parameters)
         {
-            await WithConnection<Task>(async c => {
-
-                List<T> list = new List<T>();
-
-                DynamicParameters dynamicParamters = new DynamicParameters();
-
-                foreach (var item in parameters)
-                {
-                    dynamicParamters.Add(item.ParameterName, item.Value);
-                }
-
+            await WithConnection<Task>(async c =>
+            {
                 try
                 {
+                    List<T> list = new List<T>();
+
+                    DynamicParameters dynamicParamters = new DynamicParameters();
+
+                    foreach (var item in parameters)
+                    {
+                        dynamicParamters.Add(item.ParameterName, item.Value);
+                    }
+
+
                     using (var transaction = c.BeginTransaction())
                     {
                         await c.ExecuteAsync(storedProcedure, dynamicParamters, commandType: CommandType.StoredProcedure);
@@ -220,26 +253,27 @@ namespace DapperDatabaseHelper
                 }
                 catch (Exception ex)
                 {
-                    throw new Exception(String.Format("{0}.WithConnection() experienced an exception", GetType().FullName), ex);
+                    throw new Exception(String.Format("{0} experienced an exception with parameters {1}", GetType().FullName, String.Join<SqlParameter>(",", parameters)), ex);
                 }
             });
         }
 
         public async Task ExecuteSqlTransactionQueryAsync(string sql, params SqlParameter[] parameters)
         {
-            await WithConnection<Task>(async c => {
-
-                List<T> list = new List<T>();
-
-                DynamicParameters dynamicParamters = new DynamicParameters();
-
-                foreach (var item in parameters)
-                {
-                    dynamicParamters.Add(item.ParameterName, item.Value);
-                }
-
+            await WithConnection<Task>(async c =>
+            {
                 try
                 {
+                    List<T> list = new List<T>();
+
+                    DynamicParameters dynamicParamters = new DynamicParameters();
+
+                    foreach (var item in parameters)
+                    {
+                        dynamicParamters.Add(item.ParameterName, item.Value);
+                    }
+
+
                     using (var transaction = c.BeginTransaction())
                     {
                         await c.ExecuteAsync(sql, dynamicParamters, commandType: CommandType.Text);
@@ -250,38 +284,46 @@ namespace DapperDatabaseHelper
                 }
                 catch (Exception ex)
                 {
-                    throw new Exception(String.Format("{0}.WithConnection() experienced an exception", GetType().FullName), ex);
+                    throw new Exception(String.Format("{0} experienced an exception with parameters {1}", GetType().FullName, String.Join<SqlParameter>(",", parameters)), ex);
                 }
             });
         }
 
         public DataTable ConvertObjectToDataTable<U>(IEnumerable<U> data)
         {
-            PropertyDescriptorCollection props =
-                TypeDescriptor.GetProperties(typeof(U));
-
-            DataTable dt = new DataTable();
-
-            foreach(PropertyDescriptor p in props)
+            try
             {
-                dt.Columns.Add(p.Name, p.PropertyType);
-            }
+                PropertyDescriptorCollection props =
+                    TypeDescriptor.GetProperties(typeof(U));
 
-            object[] values = new object[props.Count];
-            foreach (U item in data)
-            {
-                for (int i = 0; i < values.Length; i++)
+                DataTable dt = new DataTable();
+
+                foreach (PropertyDescriptor p in props)
                 {
-                    values[i] = props[i].GetValue(item);
+                    dt.Columns.Add(p.Name, p.PropertyType);
                 }
-                dt.Rows.Add(values);
+
+                object[] values = new object[props.Count];
+                foreach (U item in data)
+                {
+                    for (int i = 0; i < values.Length; i++)
+                    {
+                        values[i] = props[i].GetValue(item);
+                    }
+                    dt.Rows.Add(values);
+                }
+                return dt;
             }
-            return dt;
+            catch (Exception ex)
+            {
+                throw new Exception(String.Format("{0} experienced an exception with parameters {1}", GetType().FullName, String.Join<U>(",", data)), ex);
+            }
         }
 
-        public async Task ExecuteQueryTableValueParameterStoredProcedure<U>(string storedProcedure, IEnumerable<U> dataToConvert)
+        public async Task<IEnumerable<U>> ExecuteQueryTableValueParameterStoredProcedure<U>(string storedProcedure, IEnumerable<U> dataToConvert)
         {
-            return await WithConnection<IEnumerable<U>>(async c => {
+            return await WithConnection<IEnumerable<U>>(async c =>
+            {
 
                 List<T> list = new List<T>();
 
