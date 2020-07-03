@@ -212,12 +212,18 @@ namespace DapperDatabaseHelper
 
                     var data = await c.QueryMultipleAsync(storedProcedure, TParamters, commandType: CommandType.StoredProcedure);
 
-                    List<IEnumerable<T>> d = new List<IEnumerable<T>>();
-                    while (data.IsConsumed == false)
+                    List<dynamic> d = new List<dynamic>();
+                   /* while (data.IsConsumed == false)
                     {
                         d.Add(await data.ReadAsync<T>());
+                    } */
+                    
+                    while (data.IsConsumed == false) {
+                        foreach (await var item in data.ReadAsync())
+                        {
+                            d.Add(item);
+                        }
                     }
-
                     return d;
                 }
                 catch (Exception ex)
