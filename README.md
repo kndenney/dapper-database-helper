@@ -3,9 +3,14 @@ This repository is a helper class for basic read/write operations for the Dapper
 
 For configuration purposes:
 
-Add the following line in the Startup.cs of your C# .Net Core Project (if that is what you are using)
-
+Add the following line in the Startup.cs (or in newer versions of .Net Program.cs) of your C# .Net Core Project (if that is what you are using)
+//Startup.cs
 services.AddScoped(typeof(IDatabaseHelper<>), typeof(DatabaseHelper<>));
+//Program.cs
+builder.Services.AddScoped<IDapperHelper<dynamic>, DapperHelper<dynamic>>(serviceProvider =>
+{
+    return new DapperHelper<dynamic>(_config["ConnectionString"]);
+});
 
 Also to create a new instance of the class you can use dependency injection like so:
 
